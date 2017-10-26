@@ -157,7 +157,7 @@ class LoggingAnalyzer(Analyzer):
             self.__orig_file = dated_file[1]
             # print "self.__orig_file = %s" % str(self.__orig_file)
             # print "self.__orig_file modified time = %s" % str(time.strftime('%Y%m%d_%H%M%S', time.localtime(os.path.getmtime(self.__orig_file))))
-            miutils.run_shell_cmd("chmod 644 %s" % self.__orig_file)
+            miutils.run_root_shell_cmd("chmod 644 %s" % self.__orig_file)
             orphan_filename = self._save_log()
             self.log_info("Found undersized orphan log, file saved to %s" % orphan_filename)
 
@@ -179,7 +179,7 @@ class LoggingAnalyzer(Analyzer):
 
             # FIXME (Zengwen): the change access command is a walkaround
             # solution
-            miutils.run_shell_cmd("chmod 644 %s" % self.__orig_file)
+            miutils.run_root_shell_cmd("chmod 644 %s" % self.__orig_file)
 
             self._save_log()
             self.__is_wifi_enabled = miutils.get_wifi_status()

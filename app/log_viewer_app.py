@@ -32,7 +32,6 @@ import time
 import os
 import sys
 import xml.dom.minidom
-import main_utils
 
 __all__ = ["LogViewerScreen"]
 

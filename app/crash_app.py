@@ -15,7 +15,7 @@ import os
 import sys
 import re
 import datetime
-import main_utils
+from mi_utils import MobileInsightUtils as miutils
 
 __all__ = ["ConfirmPopup", "CrashApp"]
 
@@ -126,14 +126,14 @@ class CrashApp(App):
 
     def _on_answer(self, instance, answer):
         if answer == "yes":
-            phone_info = main_utils.get_phone_info()
+            phone_info = miutils.get_phone_info()
             log_name = "crash_report_" \
                 + phone_info + '_' \
                 + datetime.datetime.now().strftime('%Y%m%d_%H%M%S') \
                 + '.txt'
             log_name = os.path.join(
-                main_utils.get_mobileinsight_crash_log_path(), log_name)
-            main_utils.run_shell_cmd(
+                miutils.get_mobileinsight_crash_log_path(), log_name)
+            miutils.run_shell_cmd(
                 'logcat -d | grep -E "python|diag" >' + log_name, True)
             self.__upload_crash_log(log_name)
 

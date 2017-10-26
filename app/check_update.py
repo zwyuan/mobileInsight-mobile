@@ -18,7 +18,7 @@ import os
 import threading
 import re
 import datetime
-import main_utils
+from mi_utils import MobileInsightUtils as miutils
 
 __all__ = ["check_update"]
 
@@ -110,7 +110,7 @@ def download_thread(apk_url, apk_path):
         urllib.urlretrieve(apk_url, apk_path)
         install_apk(apk_path)
     finally:
-        main_utils.detach_thread()
+        miutils.detach_thread()
 
 
 def download_apk(instance, answer):
@@ -118,7 +118,7 @@ def download_apk(instance, answer):
     if answer == "yes":
         global apk_url
         apk_path = os.path.join(
-            main_utils.get_mobileinsight_path(),
+            miutils.get_mobileinsight_path(),
             "update.apk")
         if os.path.isfile(apk_path):
             os.remove(apk_path)

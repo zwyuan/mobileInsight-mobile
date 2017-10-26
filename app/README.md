@@ -8,7 +8,7 @@ This directory incldues source codes of MobileInsight apk.
 ├── service: launching MobileInsight plugins based on Android service. It is mandatory for python-for-android.
 ├── main.py: entrance of MobileInsight apk
 ├── main_ui.kv: kivy UI description for main UI
-├── main_utils.py: utilities functions for MobileInsight apk
+├── mi_utils.py: utilities functions for MobileInsight app/plugins
 ├── check_update.py: module for automatic update
 ├── crash_app.py: module for crash/bug report
 ├── log_viewer_app.py: in-app log viewer

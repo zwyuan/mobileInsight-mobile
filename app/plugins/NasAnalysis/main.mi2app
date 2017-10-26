@@ -7,7 +7,7 @@ from android.broadcast import BroadcastReceiver
 from jnius import autoclass
 from mobile_insight.analyzer import LteNasAnalyzer, UmtsNasAnalyzer
 from mobile_insight.monitor import OnlineMonitor
-from service import mi2app_utils
+from mi_utils import MobileInsightUtils as miutils
 
 def on_broadcast(context, intent):
     '''
@@ -18,7 +18,7 @@ def on_broadcast(context, intent):
     action = 'MobileInsight.Plugin.StopServiceAck'
     intent.setAction(action)
     try:
-        mi2app_utils.pyService.sendBroadcast(intent)
+        miutils.pyService.sendBroadcast(intent)
     except Exception as e:
         import traceback
         lte_nas_analyzer.log_error(str(traceback.format_exc()))
@@ -27,7 +27,7 @@ br = BroadcastReceiver(
         on_broadcast, actions=['MobileInsight.Main.StopService'])
 br.start()
 
-cache_directory = mi2app_utils.get_cache_dir()
+cache_directory = miutils.get_cache_dir()
 log_directory = os.path.join(cache_directory, "mi2log")
 
 # Initialize a 3G/4G monitor

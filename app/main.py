@@ -18,11 +18,14 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.utils import platform
 from log_viewer_app import LogViewerScreen
+from mi_utils import MobileInsightUtils as miutils
+from mi_utils import ChipsetType
+from mi_utils import MultiPartForm
+
 import datetime
 import functools
 import jnius
 import json
-import main_utils
 import os
 import re
 import shlex
@@ -34,6 +37,7 @@ import threading
 import time
 import traceback
 
+
 # Load main UI
 Window.softinput_mode = "pan"
 Window.clearcolor = (1, 1, 1, 1)
@@ -41,7 +45,7 @@ Builder.load_file('main_ui.kv')
 current_activity = cast("android.app.Activity", autoclass(
     "org.kivy.android.PythonActivity").mActivity)
 
-LOGO_STRING = "MobileInsight " + main_utils.get_cur_version() + \
+LOGO_STRING = "MobileInsight " + miutils.get_cur_version() + \
     "\nCopyright (c) 2015-2017 MobileInsight Team"
 
 
@@ -49,12 +53,12 @@ def create_folder():
 
     cmd = ""
 
-    mobileinsight_path = main_utils.get_mobileinsight_path()
+    mobileinsight_path = miutils.get_mobileinsight_path()
     if not mobileinsight_path:
         return False
 
     try:
-        legacy_mobileinsight_path = main_utils.get_legacy_mobileinsight_path()
+        legacy_mobileinsight_path = miutils.get_legacy_mobileinsight_path()
         cmd = cmd + "mv " + legacy_mobileinsight_path + " " + mobileinsight_path + "; "
         cmd = cmd + "mv " + legacy_mobileinsight_path + "/apps/ " + mobileinsight_path + "/plugins/; "
     except:
@@ -65,49 +69,49 @@ def create_folder():
         cmd = cmd + "chmod -R 755 " + mobileinsight_path + "; "
 
 
-    log_path = main_utils.get_mobileinsight_log_path()
+    log_path = miutils.get_mobileinsight_log_path()
     if not os.path.exists(log_path):
         cmd = cmd + "mkdir " + log_path + "; "
         cmd = cmd + "chmod -R 755 " + log_path + "; "
 
-    analysis_path = main_utils.get_mobileinsight_analysis_path()
+    analysis_path = miutils.get_mobileinsight_analysis_path()
     if not os.path.exists(analysis_path):
         cmd = cmd + "mkdir " + analysis_path + "; "
         cmd = cmd + "chmod -R 755 " + analysis_path + "; "
 
-    cfg_path = main_utils.get_mobileinsight_cfg_path()
+    cfg_path = miutils.get_mobileinsight_cfg_path()
     if not os.path.exists(analysis_path):
         cmd = cmd + "mkdir " + cfg_path + "; "
         cmd = cmd + "chmod -R 755 " + cfg_path + "; "
 
-    db_path = main_utils.get_mobileinsight_db_path()
+    db_path = miutils.get_mobileinsight_db_path()
     if not os.path.exists(db_path):
         cmd = cmd + "mkdir " + db_path + "; "
         cmd = cmd + "chmod -R 755 " + db_path + "; "
 
-    plugin_path = main_utils.get_mobileinsight_plugin_path()
+    plugin_path = miutils.get_mobileinsight_plugin_path()
     if not os.path.exists(plugin_path):
         cmd = cmd + "mkdir " + plugin_path + "; "
         cmd = cmd + "chmod -R 755 " + plugin_path + "; "
 
-    log_decoded_path = main_utils.get_mobileinsight_log_decoded_path()
+    log_decoded_path = miutils.get_mobileinsight_log_decoded_path()
     if not os.path.exists(log_decoded_path):
         cmd = cmd + "mkdir " + log_decoded_path + "; "
         cmd = cmd + "chmod -R 755 " + log_decoded_path + "; "
 
-    log_uploaded_path = main_utils.get_mobileinsight_log_uploaded_path()
+    log_uploaded_path = miutils.get_mobileinsight_log_uploaded_path()
     if not os.path.exists(log_uploaded_path):
         cmd = cmd + "mkdir " + log_uploaded_path + "; "
         cmd = cmd + "chmod -R 755 " + log_uploaded_path + "; "
 
-    crash_log_path = main_utils.get_mobileinsight_crash_log_path()
+    crash_log_path = miutils.get_mobileinsight_crash_log_path()
     if not os.path.exists(crash_log_path):
         cmd = cmd + "mkdir " + crash_log_path + "; "
         cmd = cmd + "chmod -R 755 " + crash_log_path + "; "
 
-    # cmd = cmd + "chmod -R 755 "+mobileinsight_path+"; "
+    # cmd = cmd + "chmod -R 755 " + mobileinsight_path + "; "
 
-    main_utils.run_shell_cmd(cmd)
+    miutils.run_shell_cmd(cmd)
     return True
 
 
@@ -127,7 +131,7 @@ def get_plugins_list():
             ret[f] = (os.path.join(APP_DIR, f), False)
 
     # Yuanjie: support alternative path for users to customize their own plugin
-    APP_DIR = main_utils.get_mobileinsight_plugin_path()
+    APP_DIR = miutils.get_mobileinsight_plugin_path()
 
     if os.path.exists(APP_DIR):
         l = os.listdir(APP_DIR)
@@ -184,7 +188,7 @@ class MobileInsightScreen(Screen):
 
         self.name = name
 
-        if not main_utils.is_rooted():
+        if not miutils.is_rooted():
             # self.ids.log_viewer.disabled = False
             # self.ids.run_plugin.disabled = False
             self.log_error(
@@ -346,24 +350,24 @@ class MobileInsightScreen(Screen):
         cmd = cmd + \
             "supolicy --live \"allow wcnss_service fuse file {read append getattr}\";"
 
-        main_utils.run_shell_cmd(cmd)
+        miutils.run_root_shell_cmd(cmd)
 
     def __check_diag_mode(self):
         """
         Check if diagnostic mode is enabled.
         Note that this function is chipset-specific: Qualcomm and MTK have different detection approaches
 """
-        chipset_type = main_utils.get_chipset_type()
-        if chipset_type == main_utils.ChipsetType.QUALCOMM:
+        chipset_type = miutils.get_chipset_type()
+        if chipset_type == ChipsetType.QUALCOMM:
             diag_port = "/dev/diag"
             if not os.path.exists(diag_port):
                 return False
             else:
-                main_utils.run_shell_cmd("chmod 777 /dev/diag")
+                miutils.run_root_shell_cmd("chmod 777 /dev/diag")
                 return True
-        elif chipset_type == main_utils.ChipsetType.MTK:
+        elif chipset_type == ChipsetType.MTK:
             cmd = "ps | grep emdlogger1"
-            res = main_utils.run_shell_cmd(cmd)
+            res = miutils.run_root_hell_cmd(cmd)
             if not res:
                 return False
             else:
@@ -375,7 +379,7 @@ class MobileInsightScreen(Screen):
         It creates sym links to libs, and chmod of critical execs
         """
 
-        libs_path = os.path.join(main_utils.get_files_dir(), "data")
+        libs_path = os.path.join(miutils.get_files_dir(), "data")
         cmd = ""
 
         libs_mapping = {
@@ -399,59 +403,8 @@ class MobileInsightScreen(Screen):
             cmd = cmd + " chmod 755 " + os.path.join(libs_path, exe) + "; "
 
         cmd = cmd + "chmod -R 755 " + libs_path
-        main_utils.run_shell_cmd(cmd)
+        miutils.run_root_shell_cmd(cmd)
 
-    # def __init_libs(self):
-    #     """
-    #     Initialize libs required by MobileInsight
-    #     """
-
-    #     libs_path = os.path.join(main_utils.get_files_dir(), "data")
-
-    #     libs = ["libglib-2.0.so",
-    #             "libgmodule-2.0.so",
-    #             "libgobject-2.0.so",
-    #             "libgthread-2.0.so",
-    #             "libwireshark.so",
-    #             "libwiretap.so",
-    #             "libwsutil.so"]
-
-    #     cmd = "mount -o remount,rw /system; "
-
-    #     for lib in libs:
-    #         # if not os.path.isfile(os.path.join("/system/lib",lib)):
-    #         if True:
-    #             cmd = cmd + " cp " + os.path.join(libs_path, lib) + " /system/lib/; "
-    #             cmd = cmd + " chmod 755 " + os.path.join("/system/lib", lib) + "; "
-
-    #     # sym links for some libs
-    #     libs_mapping = {"libwireshark.so": ["libwireshark.so.6", "libwireshark.so.6.0.1"],
-    #                   "libwiretap.so": ["libwiretap.so.5", "libwiretap.so.5.0.1"],
-    #                   "libwsutil.so": ["libwsutil.so.6", "libwsutil.so.6.0.0"]}
-
-    #     for lib in libs_mapping:
-    #         for sym_lib in libs_mapping[lib]:
-    #             # if not os.path.isfile("/system/lib/"+sym_lib):
-    #             if True:
-    #                cmd = cmd + " ln -s /system/lib/" + lib + " /system/lib/" + sym_lib + "; "
-    #                cmd = cmd + " chmod 755 /system/lib/" + sym_lib + "; "
-
-    #     # print cmd  # debug mode
-
-    #     # bins
-    #     exes = ["diag_revealer",
-    #             "android_pie_ws_dissector",
-    #             "android_ws_dissector"]
-    #     for exe in exes:
-    #         # if not os.path.isfile(os.path.join("/system/bin",exe)):
-    #         if True:
-    #             cmd = cmd + " cp " + os.path.join(libs_path, exe) + " /system/bin/; "
-    #             # 0755, not 755. "0" means "+x" on Android phones
-    #             cmd = cmd + " chmod 0755 " + os.path.join("/system/bin/", exe) + "; "
-
-    #     if cmd:
-    #         # at least one lib should be copied
-    #         main_utils.run_shell_cmd(cmd)
 
     def show_log(self):
 
@@ -497,12 +450,12 @@ class MobileInsightScreen(Screen):
                 no_error = False
 
     def stop_collection(self):
-        res = main_utils.run_shell_cmd("ps").split('\n')
+        res = miutils.run_root_shell_cmd("ps").split('\n')
         for item in res:
             if item.find('diag_revealer') != -1:
                 pid = item.split()[1]
-                cmd = "kill "+pid
-                main_utils.run_shell_cmd(cmd)
+                cmd = "kill " + pid
+                miutils.run_root_shell_cmd(cmd)
 
     """
     def stop_collection(self):
@@ -531,7 +484,7 @@ class MobileInsightScreen(Screen):
                 continue
         if len(diag_procs) > 0:
             cmd2 = "kill " + " ".join([str(pid) for pid in diag_procs])
-            main_utils.run_shell_cmd(cmd2)
+            miutils.run_root_shell_cmd(cmd2)
     """
 
     def popUpMenu(self):
@@ -541,7 +494,7 @@ class MobileInsightScreen(Screen):
         if platform == "android" and app_name in self.plugins_list:
             # Clean up old logs
             self.log_name = os.path.join(
-                main_utils.get_mobileinsight_analysis_path(),
+                miutils.get_mobileinsight_analysis_path(),
                 app_name + "_log.txt")
             if os.path.exists(self.log_name):
                 os.remove(self.log_name)
@@ -564,9 +517,9 @@ class MobileInsightScreen(Screen):
             # TODO: support collecting TCPDUMP trace
             # currentTime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             # tcpdumpcmd = "su -c tcpdump -i rmnet_data0 -w " \
-            #         + main_utils.get_mobileinsight_log_path() \
+            #         + miutils.get_mobileinsight_log_path() \
             #         + "/tcpdump_" + str(currentTime) + ".pcap\n"
-            # main_utils.run_shell_cmd(tcpdumpcmd)
+            # miutils.run_root_shell_cmd(tcpdumpcmd)
 
         else:
             self.error_log = "Error: " + app_name + "cannot be launched!"
@@ -612,7 +565,7 @@ class MobileInsightScreen(Screen):
 
             # killall tcpdump
             # tcpdumpcmd = "su -c killall tcpdump\n"
-            # main_utils.run_shell_cmd(tcpdumpcmd)
+            # miutils.run_root_shell_cmd(tcpdumpcmd)
 
     def on_click_plugin(self, app_name):
         if self.service:
@@ -627,20 +580,20 @@ class MobileInsightScreen(Screen):
         orig_dirname = os.path.dirname(self.__original_filename)
         self.__log_timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         milog_basename = "diag_log_%s_%s_%s.mi2log" % (
-            self.__log_timestamp, self.__phone_info, main_utils.get_operator_info())
+            self.__log_timestamp, self.__phone_info, miutils.get_operator_info())
         milog_absname = os.path.join(self.__logdir, milog_basename)
-        main_utils.run_shell_cmd("cp %s %s" %
+        miutils.run_shell_cmd("cp %s %s" %
                                    (self.__original_filename, milog_absname))
         # shutil.copyfile(self.__original_filename, milog_absname)
         # chmodcmd = "rm -f " + self.__original_filename
-        # p = subprocess.Popen("su ", executable = main_utils.ANDROID_SHELL, shell = True, \
+        # p = subprocess.Popen("su ", executable = miutils.ANDROID_SHELL, shell = True, \
         #                             stdin = subprocess.PIPE, stdout = subprocess.PIPE)
         # p.communicate(chmodcmd + '\n')
         # p.wait()
         os.remove(self.__original_filename)
 
     def about(self):
-        about_text = ('MobileInsight ' + main_utils.get_cur_version() + ' \n'
+        about_text = ('MobileInsight ' + miutils.get_cur_version() + ' \n'
                       + 'MobileInsight Team\n\n'
                       + 'Developers:\n'
                       + '    Yuanjie Li,\n'
