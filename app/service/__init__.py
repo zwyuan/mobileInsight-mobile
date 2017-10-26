@@ -1,4 +1,3 @@
-__all__ = ['gps', 'mi2app_utils']
+__all__ = ['gps']
 
 from gps import GpsListener
-
