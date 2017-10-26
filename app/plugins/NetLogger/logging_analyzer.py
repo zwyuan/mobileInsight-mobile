@@ -11,11 +11,6 @@ Version : 3.1  Attempt upload again when WiFi is available
           1.0  Init NetLogger
 '''
 
-from android.broadcast import BroadcastReceiver
-from jnius import autoclass
-from mobile_insight.analyzer import Analyzer
-from service import mi2app_utils as util
-
 import datetime
 import itertools
 import logging
@@ -29,13 +24,15 @@ import time
 import urllib
 import urllib2
 
-# logging.basicConfig(level=logging.DEBUG,
-#                     format='[%(levelname)s] (%(threadName)-10s) %(message)s',
-#                     )
+from android.broadcast import BroadcastReceiver
+from jnius import autoclass
+from mobile_insight.analyzer import Analyzer
+from mi_utils import MobileInsightUtils as miutils
+from mi_utils import MultiPartForm
 
 ANDROID_SHELL = "/system/bin/sh"
 
-__all__ = ['LoggingAnalyzer', 'MultiPartForm']
+__all__ = ['LoggingAnalyzer']
 
 
 def upload_log(filename):
@@ -65,67 +62,13 @@ def upload_log(filename):
         try:
             file_base_name = os.path.basename(filename)
             uploaded_file = os.path.join(
-                util.get_mobileinsight_log_uploaded_path(), file_base_name)
+                miutils.get_mobileinsight_log_uploaded_path(), file_base_name)
             # shutil.copyfile(filename, uploaded_file)
-            util.run_shell_cmd("cp %s %s" % (filename, uploaded_file))
+            miutils.run_shell_cmd("cp %s %s" % (filename, uploaded_file))
             os.remove(filename)
             self.log_info("File %s has been uploaded successfully" % uploaded_file)
         finally:
-            util.detach_thread()
-
-
-class MultiPartForm(object):
-
-    def __init__(self):
-        self.form_fields = []
-        self.files = []
-        self.boundary = mimetools.choose_boundary()
-        return
-
-    def get_content_type(self):
-        return 'multipart/form-data; boundary=%s' % self.boundary
-
-    def add_field(self, name, value):
-        self.form_fields.append((name, value))
-        return
-
-    def add_file(self, fieldname, filename, mimetype=None):
-        fupload = open(filename, 'rb')
-        body = fupload.read()
-        fupload.close()
-        if mimetype is None:
-            mimetype = mimetypes.guess_type(
-                filename)[0] or 'application/octet-stream'
-        self.files.append((fieldname, filename, mimetype, body))
-        return
-
-    def __str__(self):
-        parts = []
-        part_boundary = '--' + self.boundary
-        parts.extend([part_boundary,
-                      'Content-Disposition: form-data; name="%s"; filename="%s"' % (name,
-                                                                                    value)] for name,
-                     value in self.form_fields)
-
-        parts.extend(
-            [
-                part_boundary,
-                'Content-Disposition: file; name="%s"; filename="%s"' %
-                (field_name,
-                 filename),
-                'Content-Type: %s' %
-                content_type,
-                '',
-                body,
-            ] for field_name,
-            filename,
-            content_type,
-            body in self.files)
-
-        flattened = list(itertools.chain(*parts))
-        flattened.append('--' + self.boundary + '--')
-        flattened.append('')
-        return '\r\n'.join(flattened)
+            miutils.detach_thread()
 
 
 class LoggingAnalyzer(Analyzer):
@@ -136,8 +79,8 @@ class LoggingAnalyzer(Analyzer):
     def __init__(self, config):
         Analyzer.__init__(self)
 
-        self.__log_dir = util.get_mobileinsight_log_path()
-        self.__dec_log_dir = util.get_mobileinsight_log_decoded_path()
+        self.__log_dir = miutils.get_mobileinsight_log_path()
+        self.__dec_log_dir = miutils.get_mobileinsight_log_decoded_path()
         self.__orig_file = ""
         self.__raw_msg = {}
         self.__raw_msg_key = ""
@@ -192,7 +135,7 @@ class LoggingAnalyzer(Analyzer):
         action = 'MobileInsight.Plugin.StopServiceAck'
         intent.setAction(action)
         try:
-            util.pyService.sendBroadcast(intent)
+            miutils.ctx.sendBroadcast(intent)
         except Exception as e:
             import traceback
             self.log_error(str(traceback.format_exc()))
@@ -202,7 +145,7 @@ class LoggingAnalyzer(Analyzer):
         Check if there is any orphan log left in cache folder
         '''
         dated_files = []
-        mi2log_folder = os.path.join(util.get_cache_dir(), "mi2log")
+        mi2log_folder = os.path.join(miutils.get_cache_dir(), "mi2log")
         orphan_filename = ""
         for subdir, dirs, files in os.walk(mi2log_folder):
             for f in files:
@@ -214,7 +157,7 @@ class LoggingAnalyzer(Analyzer):
             self.__orig_file = dated_file[1]
             # print "self.__orig_file = %s" % str(self.__orig_file)
             # print "self.__orig_file modified time = %s" % str(time.strftime('%Y%m%d_%H%M%S', time.localtime(os.path.getmtime(self.__orig_file))))
-            util.run_shell_cmd("chmod 644 %s" % self.__orig_file)
+            miutils.run_shell_cmd("chmod 644 %s" % self.__orig_file)
             orphan_filename = self._save_log()
             self.log_info("Found undersized orphan log, file saved to %s" % orphan_filename)
 
@@ -236,10 +179,10 @@ class LoggingAnalyzer(Analyzer):
 
             # FIXME (Zengwen): the change access command is a walkaround
             # solution
-            util.run_shell_cmd("chmod 644 %s" % self.__orig_file)
+            miutils.run_shell_cmd("chmod 644 %s" % self.__orig_file)
 
             self._save_log()
-            self.__is_wifi_enabled = util.get_wifi_status()
+            self.__is_wifi_enabled = miutils.get_wifi_status()
 
             if self.__is_use_wifi is True and self.__is_wifi_enabled is True:
                 try:
@@ -306,7 +249,7 @@ class LoggingAnalyzer(Analyzer):
         self.__log_timestamp = str(time.strftime('%Y%m%d_%H%M%S',
             time.localtime(os.path.getmtime(self.__orig_file))))
         milog_base_name = "diag_log_%s_%s_%s.mi2log" % (
-            self.__log_timestamp, util.get_phone_info(), util.get_operator_info())
+            self.__log_timestamp, miutils.get_phone_info(), miutils.get_operator_info())
         milog_abs_name = os.path.join(self.__log_dir, milog_base_name)
         shutil.copyfile(self.__orig_file, milog_abs_name)
         os.remove(self.__orig_file)

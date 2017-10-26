@@ -1,15 +1,8 @@
 """
-main_utils.py
+mi_utils.py
 
-Define utility variables and functions for apps.
+Define utility variables and functions for MobileInsight
 """
-
-
-'''
-module_name, package_name, ClassName, method_name, ExceptionName,
-function_name, GLOBAL_CONSTANT_NAME, global_var_name,
-instance_var_name, function_parameter_name, local_var_name
-'''
 
 # FIXME(likayo): subprocess module in Python 2.7 is not thread-safe.
 # Use subprocess32 instead.
@@ -28,12 +21,65 @@ from mobile_insight import Element
 
 ANDROID_SHELL = "/system/bin/sh"
 
+__all__ = ['MobileInsightUtils', 'ChipsetType', 'MultiPartForm']
+
+
 class ChipsetType:
     """
     Define cellular modem type
     """
     QUALCOMM = 0
     MTK      = 1
+
+
+class MultiPartForm(object):
+
+    def __init__(self):
+        self.form_fields = []
+        self.files = []
+        self.boundary = mimetools.choose_boundary()
+        return
+
+    def get_content_type(self):
+        return 'multipart/form-data; boundary=%s' % self.boundary
+
+    def add_field(self, name, value):
+        self.form_fields.append((name, value))
+        return
+
+    def add_file(self, fieldname, filename, mimetype=None):
+        fupload = open(filename, 'rb')
+        body = fupload.read()
+        fupload.close()
+        if mimetype is None:
+            mimetype = mimetypes.guess_type(
+                filename)[0] or 'application/octet-stream'
+        self.files.append((fieldname, filename, mimetype, body))
+        return
+
+    def __str__(self):
+        parts = []
+        part_boundary = '--' + self.boundary
+        parts.extend(
+            [
+                part_boundary,
+                'Content-Disposition: form-data; name="%s"; filename="%s"' %
+                      (name, value)
+            ] for name, value in self.form_fields)
+
+        parts.extend(
+            [
+                part_boundary,
+                'Content-Disposition: file; name="%s"; filename="%s"' %
+                (field_name, filename), 'Content-Type: %s' % content_type,
+                '',
+                body,
+            ] for field_name, filename, content_type, body in self.files)
+
+        flattened = list(itertools.chain(*parts))
+        flattened.append('--' + self.boundary + '--')
+        flattened.append('')
+        return '\r\n'.join(flattened)
 
 
 class MobileInsightUtils(Element):
